@@ -27,11 +27,6 @@ pub fn count_increases(v: &Vec<i32>, window: usize) -> usize {
         .filter(|x| x > &0)
         .count()
 }
-//TODO for part 2, refactor count_increases to use sliding window.
-//Note that the "middle" numbers within 2 consecutive windows are
-//the same, so the "entering" number and the "exiting" number can
-//be compared to find if the sum increases. Note that part 1 can
-//also be refactored to use a window of size 1.
 
 /**
 Reads integers from a text file into a vector.
