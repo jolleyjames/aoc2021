@@ -17,7 +17,7 @@ assert_eq!(2, answer);
 */
 pub fn count_increases(v: &Vec<i32>, window: usize) -> usize {
     if v.len() < window + 1{
-        panic!("vec must contain at least 2 values");
+        panic!("vec must be larger than window size");
     }
     let next = &v[window..];
     let prev = &v[..v.len() - window];
