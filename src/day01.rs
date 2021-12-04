@@ -10,23 +10,28 @@ Counts the number of times the next number in the sequence increases.
 
 ```
 let v: Vec<i32> = vec![1, 10, 2, 20, 20];
-let answer = aoc2021::day01::count_increases(&v);
+let answer = aoc2021::day01::count_increases(&v, 1);
 
 assert_eq!(2, answer);
 ```
 */
-pub fn count_increases(v: &Vec<i32>) -> usize {
-    if v.len() < 2 {
+pub fn count_increases(v: &Vec<i32>, window: usize) -> usize {
+    if v.len() < window + 1{
         panic!("vec must contain at least 2 values");
     }
-    let next = &v[1..];
-    let prev = &v[..v.len() - 1];
+    let next = &v[window..];
+    let prev = &v[..v.len() - window];
     next.iter()
         .zip(prev.iter())
         .map(|(a, b)| a - b)
         .filter(|x| x > &0)
         .count()
 }
+//TODO for part 2, refactor count_increases to use sliding window.
+//Note that the "middle" numbers within 2 consecutive windows are
+//the same, so the "entering" number and the "exiting" number can
+//be compared to find if the sum increases. Note that part 1 can
+//also be refactored to use a window of size 1.
 
 /**
 Reads integers from a text file into a vector.
@@ -47,16 +52,16 @@ pub fn load_ints(file: &str) -> Result<Vec<i32>, Box<dyn Error>> {
 }
 
 /**
-Run part 1 of puzzle.
+Run Day 1's puzzle.
 
 # Examples
 ```
-let result = aoc2021::day01::run_part1("test_inputs/day01.txt");
+let result = aoc2021::day01::run("test_inputs/day01.txt", 1);
 assert_eq!(7, result);
 ```
 */
-pub fn run_part1(file: &str) -> usize {
-    count_increases(&load_ints(file).unwrap())
+pub fn run(file: &str, window: usize) -> usize {
+    count_increases(&load_ints(file).unwrap(), window)
 }
 
 #[cfg(test)]
@@ -66,8 +71,7 @@ mod tests {
     #[test]
     fn count_increases_result() {
         let v = vec![1, 10, 2, 20, 20];
-        let answer = count_increases(&v);
-
+        let answer = count_increases(&v, 1);
         assert_eq!(2, answer);
     }
 
@@ -75,14 +79,14 @@ mod tests {
     #[should_panic]
     fn count_increases_empty_vec() {
         let v = vec![];
-        let _ = count_increases(&v);
+        let _ = count_increases(&v, 1);
     }
 
     #[test]
     #[should_panic]
     fn count_increases_one_item_vec() {
         let v = vec![42];
-        let _ = count_increases(&v);
+        let _ = count_increases(&v, 1);
     }
 
     #[test]
@@ -104,8 +108,10 @@ mod tests {
     }
 
     #[test]
-    fn run_part1_ut() {
-        let result = run_part1("test_inputs/day01.txt");
+    fn run_ut() {
+        let result = run("test_inputs/day01.txt", 1);
         assert_eq!(7, result);
+        let result = run("test_inputs/day01.txt", 3);
+        assert_eq!(5, result);
     }
 }

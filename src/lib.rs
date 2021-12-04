@@ -8,7 +8,7 @@
 pub mod day01;
 
 pub fn run(problem: &str, args: &[String]) {
-    if problem == "1.1" {
-        println!("{}", day01::run_part1(&args[0]));
+    if problem == "1" {
+        println!("{}", day01::run(&args[0], args[1].parse::<usize>().unwrap()));        
     }
 }
