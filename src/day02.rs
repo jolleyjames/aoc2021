@@ -4,98 +4,113 @@ use std::io::BufRead;
 
 #[derive(Debug)]
 #[derive(PartialEq, Eq)]
-pub enum Direction {
+pub enum Command {
     Forward,
     Down,
     Up,
 }
 
-impl Direction {
+impl Command {
     /**
-    Generate Direction value from str.
+    Generate Command value from str.
 
     # Examples
     ```
-    use aoc2021::day02::Direction;
+    use aoc2021::day02::Command;
 
     let s = "down";
-    assert_eq!(Direction::Down, Direction::from_str("down"));
+    assert_eq!(Command::Down, Command::from_str("down"));
     ```
     */
-    pub fn from_str(s: &str) -> Direction {
-        let direction = if s.eq_ignore_ascii_case("forward") {
-            Direction::Forward
+    pub fn from_str(s: &str) -> Command {
+        let command = if s.eq_ignore_ascii_case("forward") {
+            Command::Forward
         } else if s.eq_ignore_ascii_case("down") {
-            Direction::Down
+            Command::Down
         } else if s.eq_ignore_ascii_case("up") {
-            Direction::Up
+            Command::Up
         } else {
-            panic!("Unrecognized direction {}", s);
+            panic!("Unrecognized command {}", s);
         };
-        direction
+        command
     }
 }
 
 #[derive(Debug)]
 #[derive(PartialEq, Eq)]
-pub struct Movement {
-    pub direction: Direction,
+pub struct Instruction {
+    pub command: Command,
     pub units: i32,
 }
 
-impl Movement {
+impl Instruction {
     /**
-    Generate Movement from str.
+    Generate Instruction from str.
 
     # Eamples
     ```
-    use aoc2021::day02::{Movement,Direction};
+    use aoc2021::day02::{Instruction,Command};
 
     let s = "up 100";
-    assert_eq!(Movement {direction: Direction::Up, units: 100}, Movement::from_str(s));
+    assert_eq!(Instruction {command: Command::Up, units: 100}, Instruction::from_str(s));
     ```
     */
-    pub fn from_str(s: &str) -> Movement {
+    pub fn from_str(s: &str) -> Instruction {
         let mut split_iter = s.split(' ');
-        let direction = Direction::from_str(split_iter.next().expect("direction missing"));
+        let command = Command::from_str(split_iter.next().expect("direction missing"));
         let units = split_iter.next().expect("units missing")
             .parse::<i32>().expect("units not parsable as integer");
-        Movement { direction, units }
+        Instruction { command, units }
     }
 }
 
 #[derive(Debug)]
 #[derive(PartialEq, Eq)]
-pub struct Position {
+pub struct State {
     pub horizontal: i32,
     pub depth: i32,
+    pub aim: i32,
 }
 
-impl Position {
+impl State {
+    /**
+    Create new State with fields initialized to 0.
+
+    # Examples
+    ```
+    use aoc2021::day02::State;
+    let expected = State {horizontal: 0, depth: 0, aim: 0};
+    assert_eq!(expected, State::new());
+    ```
+    */
+    pub fn new() -> State {
+        State {horizontal: 0, depth: 0, aim: 0}
+    }
+
     /**
     Change this position in the specified direction and units.
 
     # Examples
     ```
-    use aoc2021::day02::{Position,Direction,Movement};
+    use aoc2021::day02::{State,Command,Instruction};
 
-    let mut p = Position{horizontal: 0, depth: 0};
-    let m1 = Movement{ direction: Direction::Forward, units: 1};
-    let m2 = Movement{ direction: Direction::Down, units: 2};
-    let m3 = Movement{ direction: Direction::Up, units: 4};
-    p.travel(&m1);
-    assert_eq!(p, Position{horizontal: 1, depth: 0});
-    p.travel(&m2);
-    assert_eq!(p, Position{horizontal: 1, depth: 2});
-    p.travel(&m3);
-    assert_eq!(p, Position{horizontal: 1, depth: -2});
+    let mut s = State::new();
+    let i1 = Instruction{ command: Command::Forward, units: 1};
+    let i2 = Instruction{ command: Command::Down, units: 2};
+    let i3 = Instruction{ command: Command::Up, units: 4};
+    s.travel(&i1);
+    assert_eq!(s, State{horizontal: 1, depth: 0, aim: 0});
+    s.travel(&i2);
+    assert_eq!(s, State{horizontal: 1, depth: 2, aim: 0});
+    s.travel(&i3);
+    assert_eq!(s, State{horizontal: 1, depth: -2, aim: 0});
     ```
     */
-    pub fn travel(&mut self, m: &Movement) {
-        match m.direction {
-            Direction::Forward => {self.horizontal += m.units;},
-            Direction::Down => {self.depth += m.units;},
-            Direction::Up => {self.depth -= m.units;},
+    pub fn travel(&mut self, m: &Instruction) {
+        match m.command {
+            Command::Forward => {self.horizontal += m.units;},
+            Command::Down => {self.depth += m.units;},
+            Command::Up => {self.depth -= m.units;},
         };
     }
 }
@@ -105,20 +120,20 @@ Run part 1 of Day 2's puzzle.
 
 # Examples
 ```
-use aoc2021::day02::Position;
+use aoc2021::day02::State;
 
-let expected = Position{ horizontal: 15, depth: 10 };
+let expected = State{ horizontal: 15, depth: 10, aim: 0 };
 assert_eq!(expected, aoc2021::day02::run_part1("test_inputs/day02.txt"));
 ```
 */
-pub fn run_part1(file: &str) -> Position {
+pub fn run_part1(file: &str) -> State {
     let file = File::open(file).expect("could not open file");
     let buf_reader = BufReader::new(file);
     
     buf_reader.lines()
-        .map(|s| Movement::from_str(&s.unwrap()))
-        .fold(Position{ horizontal: 0, depth: 0}, 
-              |mut p: Position, m| {
+        .map(|s| Instruction::from_str(&s.unwrap()))
+        .fold(State::new(), 
+              |mut p: State, m| {
                   p.travel(&m);
                   p
               })
@@ -130,7 +145,7 @@ mod tests {
 
     #[test]
     fn run_part1_result() {
-        let expected = Position{ horizontal: 15, depth: 10 };
+        let expected = State{ horizontal: 15, depth: 10, aim: 0};
         assert_eq!(expected, run_part1("test_inputs/day02.txt"));
     }
 }
