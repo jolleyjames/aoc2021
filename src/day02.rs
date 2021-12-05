@@ -1,9 +1,8 @@
 use std::fs::File;
-use std::io::BufReader;
 use std::io::BufRead;
+use std::io::BufReader;
 
-#[derive(Debug)]
-#[derive(PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum Command {
     Forward,
     Down,
@@ -36,8 +35,7 @@ impl Command {
     }
 }
 
-#[derive(Debug)]
-#[derive(PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct Instruction {
     pub command: Command,
     pub units: i32,
@@ -58,14 +56,16 @@ impl Instruction {
     pub fn from_str(s: &str) -> Instruction {
         let mut split_iter = s.split(' ');
         let command = Command::from_str(split_iter.next().expect("direction missing"));
-        let units = split_iter.next().expect("units missing")
-            .parse::<i32>().expect("units not parsable as integer");
+        let units = split_iter
+            .next()
+            .expect("units missing")
+            .parse::<i32>()
+            .expect("units not parsable as integer");
         Instruction { command, units }
     }
 }
 
-#[derive(Debug)]
-#[derive(PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct State {
     pub horizontal: i32,
     pub depth: i32,
@@ -84,7 +84,11 @@ impl State {
     ```
     */
     pub fn new() -> State {
-        State {horizontal: 0, depth: 0, aim: 0}
+        State {
+            horizontal: 0,
+            depth: 0,
+            aim: 0,
+        }
     }
 
     /**
@@ -106,37 +110,90 @@ impl State {
     assert_eq!(s, State{horizontal: 1, depth: -2, aim: 0});
     ```
     */
-    pub fn travel(&mut self, m: &Instruction) {
-        match m.command {
-            Command::Forward => {self.horizontal += m.units;},
-            Command::Down => {self.depth += m.units;},
-            Command::Up => {self.depth -= m.units;},
+    pub fn travel(&mut self, i: &Instruction) {
+        match i.command {
+            Command::Forward => {
+                self.horizontal += i.units;
+            }
+            Command::Down => {
+                self.depth += i.units;
+            }
+            Command::Up => {
+                self.depth -= i.units;
+            }
+        };
+    }
+
+    /**
+    Either change the aim or move forward, depending on the Instruction.
+
+    # Examples
+    ```
+    use aoc2021::day02::{State,Command,Instruction};
+
+    let mut s = State::new();
+    let i1 = Instruction{ command: Command::Down, units: 2};
+    let i2 = Instruction{ command: Command::Forward, units: 10};
+    let i3 = Instruction{ command: Command::Up, units: 4};
+    let i4 = Instruction{ command: Command::Forward, units: 100};
+    s.aim_or_travel(&i1);
+    assert_eq!(s, State{horizontal: 0, depth: 0, aim: 2});
+    s.aim_or_travel(&i2);
+    assert_eq!(s, State{horizontal: 10, depth: 20, aim: 2});
+    s.aim_or_travel(&i3);
+    assert_eq!(s, State{horizontal: 10, depth: 20, aim: -2});
+    s.aim_or_travel(&i4);
+    assert_eq!(s, State{horizontal: 110, depth: -180, aim: -2});
+    ```
+    */
+    pub fn aim_or_travel(&mut self, i: &Instruction) {
+        match i.command {
+            Command::Forward => {
+                self.horizontal += i.units;
+                self.depth += i.units * self.aim;
+            }
+            Command::Down => {
+                self.aim += i.units;
+            }
+            Command::Up => {
+                self.aim -= i.units;
+            }
         };
     }
 }
 
 /**
-Run part 1 of Day 2's puzzle.
+Run Day 2's puzzle.
 
 # Examples
 ```
 use aoc2021::day02::State;
 
 let expected = State{ horizontal: 15, depth: 10, aim: 0 };
-assert_eq!(expected, aoc2021::day02::run_part1("test_inputs/day02.txt"));
+assert_eq!(expected, aoc2021::day02::run("test_inputs/day02.txt", 1));
+let expected = State{ horizontal: 15, depth: 60, aim: 10 };
+assert_eq!(expected, aoc2021::day02::run("test_inputs/day02.txt", 2));
 ```
 */
-pub fn run_part1(file: &str) -> State {
+pub fn run(file: &str, part: u8) -> State {
     let file = File::open(file).expect("could not open file");
     let buf_reader = BufReader::new(file);
-    
-    buf_reader.lines()
+    let closure = if part == 1 {
+        State::travel
+    } else if part == 2 {
+        State::aim_or_travel
+    } else {
+        panic!("Part must be 1 or 2");
+    };
+
+    buf_reader
+        .lines()
         .map(|s| Instruction::from_str(&s.unwrap()))
-        .fold(State::new(), 
-              |mut p: State, m| {
-                  p.travel(&m);
-                  p
-              })
+        .fold(State::new(), |s: State, i| {
+            let mut s = s;
+            closure(&mut s, &i);
+            s
+        })
 }
 
 #[cfg(test)]
@@ -144,8 +201,22 @@ mod tests {
     use super::*;
 
     #[test]
-    fn run_part1_result() {
-        let expected = State{ horizontal: 15, depth: 10, aim: 0};
-        assert_eq!(expected, run_part1("test_inputs/day02.txt"));
+    fn run_part1() {
+        let expected = State {
+            horizontal: 15,
+            depth: 10,
+            aim: 0,
+        };
+        assert_eq!(expected, run("test_inputs/day02.txt", 1));
+    }
+
+    #[test]
+    fn run_part2() {
+        let expected = State {
+            horizontal: 15,
+            depth: 60,
+            aim: 10,
+        };
+        assert_eq!(expected, run("test_inputs/day02.txt", 2));
     }
 }
