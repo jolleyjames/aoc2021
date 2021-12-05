@@ -7,6 +7,7 @@
 
 pub mod day01;
 pub mod day02;
+pub mod day03;
 
 pub fn run(problem: &str, args: &[String]) {
     if problem == "1" {
@@ -15,5 +16,7 @@ pub fn run(problem: &str, args: &[String]) {
         let part = args[0].parse::<u8>().unwrap();
         let result = day02::run(&args[1], part);
         println!("{:?} (product {})", result, result.horizontal * result.depth);
+    } else if problem == "3" {
+        println!("{}", day03::run_part1(&args[0]));
     }
 }
