@@ -6,9 +6,13 @@
 //! See [Advent of Code 2021](https://adventofcode.com/2021)
 
 pub mod day01;
+pub mod day02;
 
 pub fn run(problem: &str, args: &[String]) {
     if problem == "1" {
         println!("{}", day01::run(&args[0], args[1].parse::<usize>().unwrap()));        
+    } else if problem == "2.1" {
+        let result = day02::run_part1(&args[0]);
+        println!("{:?} (product {})", result, result.horizontal * result.depth);
     }
 }
