@@ -17,6 +17,13 @@ pub fn run(problem: &str, args: &[String]) {
         let result = day02::run(&args[1], part);
         println!("{:?} (product {})", result, result.horizontal * result.depth);
     } else if problem == "3" {
-        println!("{}", day03::run_part1(&args[0]));
+        let f = if args[0] == "1" {
+            day03::run_part1
+        } else if args[0] == "2" {
+            day03::run_part2
+        } else {
+            panic!("part must be 1 or 2");
+        };
+        println!("{}", f(&args[1]));
     }
 }
