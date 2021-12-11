@@ -8,6 +8,7 @@
 pub mod day01;
 pub mod day02;
 pub mod day03;
+pub mod day04;
 
 pub fn run(problem: &str, args: &[String]) {
     if problem == "1" {
@@ -25,5 +26,7 @@ pub fn run(problem: &str, args: &[String]) {
             panic!("part must be 1 or 2");
         };
         println!("{}", f(&args[1]));
+    } else if problem == "4" {
+        println!("{}", day04::run(args[0].parse::<i32>().unwrap(), &args[1]));
     }
 }
