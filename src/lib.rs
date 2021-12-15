@@ -46,6 +46,6 @@ pub fn run(problem: &str, args: &[String]) {
             _ => {panic!("Unexpected part {}", args[0])},
         };
     } else if problem == "9" {
-        println!("{}", day09::run_part1(&args[0]));
+        println!("{}", day09::run(args[0].parse::<i32>().unwrap(), &args[1]));
     }
 }
