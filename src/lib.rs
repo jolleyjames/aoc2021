@@ -13,6 +13,7 @@ pub mod day05;
 pub mod day06;
 pub mod day07;
 pub mod day08;
+pub mod day09;
 
 pub fn run(problem: &str, args: &[String]) {
     if problem == "1" {
@@ -44,5 +45,7 @@ pub fn run(problem: &str, args: &[String]) {
             "2" => {println!("{}", day08::run_part2(&args[1]));},
             _ => {panic!("Unexpected part {}", args[0])},
         };
+    } else if problem == "9" {
+        println!("{}", day09::run_part1(&args[0]));
     }
 }
