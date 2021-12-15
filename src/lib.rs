@@ -41,6 +41,7 @@ pub fn run(problem: &str, args: &[String]) {
     } else if problem == "8" {
         match args[0].as_str() {
             "1" => {println!("{}", day08::run_part1(&args[1]));},
+            "2" => {println!("{}", day08::run_part2(&args[1]));},
             _ => {panic!("Unexpected part {}", args[0])},
         };
     }
