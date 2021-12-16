@@ -49,6 +49,10 @@ pub fn run(problem: &str, args: &[String]) {
     } else if problem == "9" {
         println!("{}", day09::run(args[0].parse::<i32>().unwrap(), &args[1]));
     } else if problem == "10" {
-        println!("{}", day10::run_part1(&args[0]));
+        match args[0].as_str() {
+            "1" => {println!("{}", day10::run_part1(&args[1]));},
+            "2" => {println!("{}", day10::run_part2(&args[1]));},
+            _ => {panic!("Unexpected part {}", args[0])},
+        };
     }
 }

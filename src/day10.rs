@@ -12,7 +12,7 @@ pub struct Chunk {
 #[derive(PartialEq, Eq, Debug)]
 pub enum ParseResult {
     Ok(Chunk), // the chunk and the number of chars consumed
-    Incomplete,
+    Incomplete(i128), // the incomplete score of this chunk
     Corrupt(usize), // the index of the illegal closing character
     Empty, // if there are no chunks in the line
 }
@@ -25,7 +25,7 @@ impl Chunk {
     ```
     use aoc2021::day10::{Chunk, ParseResult};
     assert_eq!(Chunk::parse(""), ParseResult::Empty);
-    assert_eq!(Chunk::parse("["), ParseResult::Incomplete);
+    assert_eq!(Chunk::parse("["), ParseResult::Incomplete(2));
     assert_eq!(Chunk::parse("<}"), ParseResult::Corrupt(1));
     assert_eq!(Chunk::parse(">"), ParseResult::Corrupt(0));
 
@@ -59,9 +59,10 @@ impl Chunk {
            Chunk{open_char: '[', consumed: 2, subchunks: vec![]},
         ]};
     assert_eq!(Chunk::parse("(<[]()>[]){}<>[]()"), ParseResult::Ok(expected));
-    assert_eq!(Chunk::parse("(<[]("), ParseResult::Incomplete);
+    assert_eq!(Chunk::parse("(<[]("), ParseResult::Incomplete( 5* (5*1 + 4 ) + 1 ));
     assert_eq!(Chunk::parse("(<[](}>[])"), ParseResult::Corrupt(5));
     assert_eq!(Chunk::parse("(<[]})>[])"), ParseResult::Corrupt(4));
+    assert_eq!(Chunk::parse("(((({<>}<{<{<>}{[]{[]{}"), ParseResult::Incomplete(1480781));
     ```
      */
     pub fn parse(s: &str) -> ParseResult {
@@ -75,7 +76,14 @@ impl Chunk {
                     if ndx == 0 {
                         return ParseResult::Empty;
                     } else if is_open {
-                        return ParseResult::Incomplete;
+                        let score = match chunk.open_char {
+                            '(' => 1,
+                            '[' => 2,
+                            '{' => 3,
+                            '<' => 4,
+                            _ => panic!("unexpected opening character"),
+                        };
+                        return ParseResult::Incomplete(score);
                     } else {
                         return ParseResult::Ok(chunk);
                     }
@@ -110,8 +118,14 @@ impl Chunk {
                                 chunk.consumed += new_chunk.consumed;
                                 chunk.subchunks.push(new_chunk);
                             },
-                            ParseResult::Incomplete => {
-                                return ParseResult::Incomplete;
+                            ParseResult::Incomplete(score) => {
+                                return ParseResult::Incomplete(5*score + match chunk.open_char {
+                                    '(' => 1,
+                                    '[' => 2,
+                                    '{' => 3,
+                                    '<' => 4,
+                                    _ => panic!("unexpected opening character"),
+                                });
                             },
                             ParseResult::Empty => {
                                 return ParseResult::Empty;
@@ -153,4 +167,30 @@ pub fn run_part1(file: &str) -> i32 {
                 _ => 0
             }
         }).sum()
+}
+
+/**
+Find the median score of the incomplete lines.
+# Examples
+```
+assert_eq!(288957, aoc2021::day10::run_part2("test_inputs/day10.txt"));
+```
+ */
+
+pub fn run_part2(file: &str) -> i128 {
+    let file = File::open(file).expect("could not open file");
+    let buf_reader = BufReader::new(file);
+    let mut scores: Vec<i128> = buf_reader.lines()
+        .map(|wrapped_line| {
+            let line = wrapped_line.unwrap();
+            match Chunk::parse(&line) {
+                ParseResult::Incomplete(score) => Some(score),
+                _ => None,
+            }
+        }).filter(|o| o.is_some())
+        .map(|o| o.unwrap())
+        .collect();
+    scores.sort_by(|a,b| a.cmp(b));
+    
+    *scores.get(scores.len()/2 as usize).unwrap()
 }
