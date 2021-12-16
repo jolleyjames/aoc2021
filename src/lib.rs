@@ -14,6 +14,7 @@ pub mod day06;
 pub mod day07;
 pub mod day08;
 pub mod day09;
+pub mod day10;
 
 pub fn run(problem: &str, args: &[String]) {
     if problem == "1" {
@@ -47,5 +48,7 @@ pub fn run(problem: &str, args: &[String]) {
         };
     } else if problem == "9" {
         println!("{}", day09::run(args[0].parse::<i32>().unwrap(), &args[1]));
+    } else if problem == "10" {
+        println!("{}", day10::run_part1(&args[0]));
     }
 }
