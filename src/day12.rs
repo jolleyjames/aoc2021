@@ -25,7 +25,7 @@ pub fn load_caves(file: &str) -> HashMap<String, Vec<String>> {
 /**
 Find all unique paths from start to end.
  */
-pub fn find_paths(caves: &HashMap<String, Vec<String>>) -> HashSet<Vec<String>> {
+pub fn find_paths(caves: &HashMap<String, Vec<String>>, part: usize) -> HashSet<Vec<String>> {
     let mut incomplete_paths: HashSet<Vec<String>> = HashSet::new();
     let mut complete_paths: HashSet<Vec<String>> = HashSet::new();
     incomplete_paths.insert(vec![String::from("start")]);
@@ -36,11 +36,29 @@ pub fn find_paths(caves: &HashMap<String, Vec<String>>) -> HashSet<Vec<String>> 
         let last_cave: String = this_path.iter().next_back().unwrap().clone();
         caves.get(&last_cave).unwrap().iter()
             .for_each(|cave| {
-                if &cave.to_lowercase() == cave && this_path.contains(cave) {
+                if cave == "start" {
                     return;
+                }
+                if &cave.to_lowercase() == cave {
+                    if part == 1 {
+                        if this_path.iter().filter(|c| c == &cave).count() >= 1 {
+                            return;
+                        }
+                    } else {
+                        let mut small_path: Vec<&String> = this_path.iter()
+                            .filter(|c| &&c.to_lowercase() == c)
+                            .collect();
+                        small_path.sort();
+                        for ndx in 1..small_path.len() {
+                            if small_path[ndx-1] == small_path[ndx] && this_path.contains(&cave) {
+                                return;
+                            }
+                        }
+                    }
                 }
                 let mut new_path = this_path.clone();
                 new_path.push(cave.to_string());
+
                 if !incomplete_paths.contains(&new_path) && !complete_paths.contains(&new_path) {
                     if cave == "end" {
                         complete_paths.insert(new_path);
@@ -55,17 +73,20 @@ pub fn find_paths(caves: &HashMap<String, Vec<String>>) -> HashSet<Vec<String>> 
 }
 
 /**
-Run part 1 of Day 12's exercise.
+Run Day 12's exercise.
 
 # Examples
 ```
-assert_eq!(10, aoc2021::day12::run_part1("test_inputs/day12_1.txt"));
-assert_eq!(19, aoc2021::day12::run_part1("test_inputs/day12_2.txt"));
-assert_eq!(226, aoc2021::day12::run_part1("test_inputs/day12_3.txt"));
+assert_eq!(10, aoc2021::day12::run("test_inputs/day12_1.txt", 1));
+assert_eq!(19, aoc2021::day12::run("test_inputs/day12_2.txt", 1));
+assert_eq!(226, aoc2021::day12::run("test_inputs/day12_3.txt", 1));
+assert_eq!(36, aoc2021::day12::run("test_inputs/day12_1.txt", 2));
+assert_eq!(103, aoc2021::day12::run("test_inputs/day12_2.txt", 2));
+assert_eq!(3509, aoc2021::day12::run("test_inputs/day12_3.txt", 2));
 ```
  */
-pub fn run_part1(file: &str) -> usize {
-    find_paths(&load_caves(file)).len()
+pub fn run(file: &str, part: usize) -> usize {
+    find_paths(&load_caves(file), part).len()
 }
 
 #[cfg(test)]
@@ -131,7 +152,7 @@ mod tests {
     #[test]
     fn test_find_paths() {
         let caves = load_caves("test_inputs/day12_1.txt");
-        let paths = find_paths(&caves);
+        let paths = find_paths(&caves, 1);
         assert_eq!(10, paths.len());
         let expected_paths =
 "start,A,b,A,c,A,end

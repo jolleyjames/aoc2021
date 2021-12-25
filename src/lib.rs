@@ -63,10 +63,7 @@ pub fn run(problem: &str, args: &[String]) {
             _ => {panic!("Unexpected part {}", args[0])},
         };
     } else if problem == "12" {
-        match args[0].as_str() {
-            "1" => {println!("{}", day12::run_part1(&args[1]));},
-            _ => {panic!("Unexpected part {}", args[0])},
-        };
+        println!("{}", day12::run(&args[1], args[0].parse::<usize>().unwrap()));
     }
 
 }
