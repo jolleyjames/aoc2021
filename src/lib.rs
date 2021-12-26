@@ -18,6 +18,7 @@ pub mod day10;
 pub mod day11;
 pub mod day12;
 pub mod day13;
+pub mod day14;
 
 pub fn run(problem: &str, args: &[String]) {
     if problem == "1" {
@@ -76,6 +77,11 @@ pub fn run(problem: &str, args: &[String]) {
             }
             _ => {panic!("Unexpected part {}", args[0])},
         };
-    }
-
+    } else if problem == "14" {
+        match args[0].as_str() {
+            "1" => {println!("{}", day14::run(&args[1], 10));},
+            "2" => {println!("{}", day14::run(&args[1], 40));},
+            _ => {panic!("Unexpected part {}", args[0])},
+        };
+    } 
 }
