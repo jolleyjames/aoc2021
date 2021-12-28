@@ -35,7 +35,18 @@ pub fn hex_to_bin(s: &str) -> String {
 #[derive(Clone, Copy, Debug)]
 pub enum PacketKind {
     Literal(u64),
-    Operator,
+    Operator(OperatorKind),
+}
+
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub enum OperatorKind {
+    Sum,
+    Product,
+    Min,
+    Max,
+    Gt,
+    Lt,
+    Eq,
 }
 
 #[derive(Debug)]
@@ -85,7 +96,7 @@ impl Packet {
     assert_eq!(1, packet.get_version());
     assert_eq!(6, packet.get_type_id());
     match packet.get_kind() {
-        aoc2021::day16::PacketKind::Operator => (),
+        aoc2021::day16::PacketKind::Operator(op) => {assert_eq!(aoc2021::day16::OperatorKind::Lt, op);},
         _ => {panic!("expected Operator");},
     };
     assert_eq!(2, packet.get_subpackets().len());
@@ -104,7 +115,7 @@ impl Packet {
     assert_eq!(7, packet.get_version());
     assert_eq!(3, packet.get_type_id());
     match packet.get_kind() {
-        aoc2021::day16::PacketKind::Operator => (),
+        aoc2021::day16::PacketKind::Operator(op) => {assert_eq!(aoc2021::day16::OperatorKind::Max, op);},
         _ => {panic!("expected Operator");},
     };
     assert_eq!(3, packet.get_subpackets().len());
@@ -126,7 +137,7 @@ impl Packet {
     pub fn from_binary_str(s: &str) -> (Packet, usize) {
         let version = u8::from_str_radix(&s[0..3], 2).unwrap();
         let type_id = u8::from_str_radix(&s[3..6], 2).unwrap();
-        let mut kind = PacketKind::Operator;
+        let kind: PacketKind;
         let mut subpackets = Vec::new();
         let mut ndx: usize = 6;
         if type_id == 4 {
@@ -161,6 +172,16 @@ impl Packet {
                     ndx += consumed;
                 }
             }
+            kind = PacketKind::Operator(match type_id {
+                0 => OperatorKind::Sum,
+                1 => OperatorKind::Product,
+                2 => OperatorKind::Min,
+                3 => OperatorKind::Max,
+                5 => OperatorKind::Gt,
+                6 => OperatorKind::Lt,
+                7 => OperatorKind::Eq,
+                _ => panic!("illegal type_id {}", type_id),
+            });
         }
         (Packet{ version, type_id, kind, subpackets }, ndx)
     }
@@ -195,7 +216,7 @@ Run part 1 of Day 16's exercise.
 
 # Examples
 ```
-assert_eq!(31, aoc2021::day16::run_part1("test_inputs/day16.txt"));
+assert_eq!(31, aoc2021::day16::run_part1("test_inputs/day16_1.txt"));
 ```
  */
 pub fn run_part1(file: &str) -> u64 {
@@ -207,3 +228,74 @@ pub fn run_part1(file: &str) -> u64 {
     };
     sum_versions_from_hex_str(sbuf.trim())
 }
+
+/**
+Evaluate the value of a packet.
+
+# Examples
+```
+assert_eq!(3, aoc2021::day16::eval_packet_from_hex_str("C200B40A82"));
+assert_eq!(54, aoc2021::day16::eval_packet_from_hex_str("04005AC33890"));
+assert_eq!(7, aoc2021::day16::eval_packet_from_hex_str("880086C3E88112"));
+assert_eq!(9, aoc2021::day16::eval_packet_from_hex_str("CE00C43D881120"));
+assert_eq!(1, aoc2021::day16::eval_packet_from_hex_str("D8005AC2A8F0"));
+assert_eq!(0, aoc2021::day16::eval_packet_from_hex_str("F600BC2D8F"));
+assert_eq!(0, aoc2021::day16::eval_packet_from_hex_str("9C005AC2F8F0"));
+assert_eq!(1, aoc2021::day16::eval_packet_from_hex_str("9C0141080250320F1802104A08"));
+```
+ */
+pub fn eval_packet_from_hex_str(hex_str: &str) -> u64 {
+    let (packet, _) = Packet::from_binary_str(&hex_to_bin(hex_str));
+
+    eval_packet(&packet)
+}
+
+pub fn eval_packet(packet: &Packet) -> u64 {
+    match packet.get_kind() {
+        PacketKind::Literal(v) => v,
+        PacketKind::Operator(op_kind) => if [OperatorKind::Gt, OperatorKind::Lt, OperatorKind::Eq].contains(&op_kind) {
+            // binary operation
+            let op = match op_kind {
+                OperatorKind::Gt => u64::gt,
+                OperatorKind::Lt => u64::lt,
+                OperatorKind::Eq => u64::eq,
+                _ => panic!("This line should not be reached"),
+            };
+            if op(&eval_packet(&packet.get_subpackets()[0]), &eval_packet(&packet.get_subpackets()[1])) {
+                1
+            } else {
+                0
+            }
+        } else {
+            // n-ary operation
+            let iter = packet.get_subpackets().iter()
+                .map(|p| eval_packet(p));
+            match op_kind {
+                OperatorKind::Sum => iter.sum(),
+                OperatorKind::Product => iter.product(),
+                OperatorKind::Min => iter.min().unwrap(),
+                OperatorKind::Max => iter.max().unwrap(),
+                _ => panic!("This line should not be reached"),
+            }
+        }
+    }
+}
+
+/**
+Run part 2 of Day 16's exercise.
+
+# Examples
+```
+assert_eq!(1, aoc2021::day16::run_part2("test_inputs/day16_2.txt"));
+```
+ */
+pub fn run_part2(file: &str) -> u64 {
+    let file = File::open(file).expect("could not open file");
+    let mut sbuf = String::new();
+    match BufReader::new(file).read_line(&mut sbuf) {
+        Err(e) => {panic!("Error reading input: {:?}", e);},
+        _ => (),
+    };
+    eval_packet_from_hex_str(sbuf.trim())
+}
+
