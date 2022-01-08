@@ -658,3 +658,36 @@ pub fn run_part1(file: &str) -> u64 {
     }
     pfn.magnitude_reduce()
 }
+
+/**
+Run part 2 of the Day 18 exercise.
+
+# Examples
+```
+assert_eq!(3993, aoc2021::day18::run_part2("test_inputs/day18.txt"));
+```
+ */
+pub fn run_part2(file: &str) -> u64 {
+    let file = File::open(file).expect("could not open file");
+    let buf_reader = BufReader::new(file);
+    let pfn_strings: Vec<String> = buf_reader
+        .lines()
+        .map(|l| l.unwrap())
+        .collect();
+    let mut combos = Vec::new();
+    for a in 0..pfn_strings.len() {
+        for b in 0..pfn_strings.len() {
+            if a != b {
+                combos.push((a,b));
+            }
+        }
+    }
+    combos.iter()
+        .map(|t| {
+            let mut pfn = PFNumber::parse(&pfn_strings[t.0]);
+            pfn.add_assign(&PFNumber::parse(&pfn_strings[t.1]));
+            while pfn.reduce() {}
+            pfn.magnitude_reduce()
+        })
+        .max().unwrap()
+}
