@@ -2,6 +2,8 @@ use std::fs::File;
 use std::io::BufRead;
 use std::io::BufReader;
 use std::collections::HashMap;
+use std::sync::mpsc;
+use std::thread;
 use itertools::Itertools;
 
 fn load_start_pos(file: &str) -> (i32,i32) {
@@ -66,40 +68,14 @@ fn next_roll(rolls: &mut Vec<u8>, is_winner: bool) {
 
 }
 
-/**
-Run part 2 of Day 21's exercise.
-
-# Examples
-```
-assert_eq!(444356092776315, aoc2021::day21::run_part2("test_inputs/day21.txt"));
-```
- */
-pub fn run_part2(file: &str) -> u64 {
-    let (a_start, b_start) = load_start_pos(file);
-    // find all totals from 3 rolls of the 3-sided die
-    let mut totals: Vec<u8> = Vec::new();
-    for a in 1..4 {
-        for b in 1..4 {
-            for c in 1..4 {
-                totals.push((a+b+c) as u8);
-            }
-        }
-    }
-    totals.sort();
-    let totals: HashMap<u8, u64> = totals.iter()
-        .group_by(|t| *t)
-        .into_iter()
-        .map(|t| (*t.0, t.1.collect::<Vec<&u8>>().len() as u64))
-        .collect();
+fn part2_thread(rolls: &Vec<u8>, totals: &HashMap<u8, u64>, a_start: i32, b_start: i32 ) -> (u64,u64) {
+    let rolls_len_init = rolls.len();
     // combinations of 3-rolls that produce a winner
+    let mut rolls = rolls.clone();
+    rolls.push(3);
     let mut winners_0: Vec<Vec<u8>> = Vec::new();
     let mut winners_1: Vec<Vec<u8>> = Vec::new();
-    let mut rolls: Vec<u8> = vec![3];
-    while rolls.len() > 0 {
-        //DEBUG
-        println!("- - - - -");
-        println!("rolls: {:?}", rolls);
-        //END DEBUG
+    while rolls.len() > rolls_len_init {
         let mut a_score = 0;
         let mut b_score = 0;
         let mut a_pos = a_start;
@@ -136,10 +112,6 @@ pub fn run_part2(file: &str) -> u64 {
         } else {
             next_roll(&mut rolls, false);
         }
-        //DEBUG
-        println!("a_score: {}, a_pos: {}", a_score, a_pos);
-        println!("a_score: {}, a_pos: {}", b_score, b_pos);
-        //END DEBUG
     }
     let winners_0: u64 = winners_0.iter()
         .map(|v| v.iter().map(|tot| totals.get(tot).unwrap()).product::<u64>())
@@ -147,6 +119,62 @@ pub fn run_part2(file: &str) -> u64 {
     let winners_1: u64 = winners_1.iter()
         .map(|v| v.iter().map(|tot| totals.get(tot).unwrap()).product::<u64>())
         .sum();
+    
+    (winners_0,winners_1)
+}
+
+/**
+Run part 2 of Day 21's exercise.
+
+# Examples
+```
+assert_eq!(444356092776315, aoc2021::day21::run_part2("test_inputs/day21.txt"));
+```
+ */
+pub fn run_part2(file: &str) -> u64 {
+    let (a_start, b_start) = load_start_pos(file);
+    // find all totals from 3 rolls of the 3-sided die
+    let mut totals: Vec<u8> = Vec::new();
+    for a in 1..4 {
+        for b in 1..4 {
+            for c in 1..4 {
+                totals.push((a+b+c) as u8);
+            }
+        }
+    }
+    totals.sort();
+    let totals: HashMap<u8, u64> = totals.iter()
+        .group_by(|t| *t)
+        .into_iter()
+        .map(|t| (*t.0, t.1.collect::<Vec<&u8>>().len() as u64))
+        .collect();
+    let mut winners_0: u64 = 0;
+    let mut winners_1: u64 = 0;
+    let (tx, rx) = mpsc::channel();
+    // TODO do this for all combos
+    for a in 3..10 {
+        for b in 3..10 {
+            for c in 3..10 {
+                for d in 3..10 {
+                    let rolls: Vec<u8> = vec![a,b,c,d];
+                    let totals_clone = totals.clone();
+                    let a_start_copy = a_start;
+                    let b_start_copy = b_start;
+                    let txcl = tx.clone();
+                    thread::spawn(move || {
+                        let (r0, r1) = part2_thread(&rolls, &totals_clone, a_start_copy, b_start_copy);
+                        txcl.send((r0,r1)).unwrap();
+                    });                
+                }
+            }
+        }
+    }
+    drop(tx);
+    
+    for (r0, r1) in rx {
+        winners_0 += r0;
+        winners_1 += r1;
+    }
     
     winners_0.max(winners_1)
 }
