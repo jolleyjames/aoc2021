@@ -137,9 +137,7 @@ pub fn run(problem: &str, args: &[String]) {
             _ => {panic!("Unexpected part {}", args[0])},
         };
     } else if problem == "23" {
-        match args[0].as_str() {
-            "1" => {println!("{}", day23::run_part1(&args[1]));},
-            _ => {panic!("Unexpected part {}", args[0])},
-        };
+        let part = args[0].parse::<u8>().unwrap();
+        println!("{}", day23::run(part, &args[1]));
     }
 }

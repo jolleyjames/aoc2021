@@ -25,10 +25,10 @@ impl Amphipod {
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 struct Burrow {
     hallway: [Option<Amphipod>; 11],
-    room_a: [Option<Amphipod>; 2],
-    room_b: [Option<Amphipod>; 2],
-    room_c: [Option<Amphipod>; 2],
-    room_d: [Option<Amphipod>; 2],
+    room_a: [Option<Amphipod>; 4],
+    room_b: [Option<Amphipod>; 4],
+    room_c: [Option<Amphipod>; 4],
+    room_d: [Option<Amphipod>; 4],
 }
 
 impl Burrow {
@@ -43,16 +43,13 @@ impl Burrow {
         for ndx in 0..self.hallway.len() {
             if self.hallway[ndx].is_some() {
                 let amph = self.hallway[ndx].unwrap();
-                let dest: &[Option<Amphipod>; 2] = match amph {
+                let dest: &[Option<Amphipod>; 4] = match amph {
                     Amphipod::Amber => &self.room_a,
                     Amphipod::Bronze => &self.room_b,
                     Amphipod::Copper => &self.room_c,
                     Amphipod::Desert => &self.room_d,
                 };
-                if dest[0] == Option::None && match dest[1] {
-                    Option::None => true,
-                    Option::Some(a) => a == amph,
-                } {
+                if dest.into_iter().all(|o| o.is_none() || o.unwrap() == amph) {
                     // the room is open. is the hallway clear?
                     let room_loc = Burrow::room_locations()[match amph {
                         Amphipod::Amber => 0,
@@ -68,10 +65,14 @@ impl Burrow {
                     if self.hallway[range].iter()
                         .all(|space| space.is_none()) {
                         
-                        let down_steps = match dest[1] {
-                            None => 2,
-                            Some(_) => 1,
-                        };
+                        let mut down_steps: usize = 0;
+                        for space in dest {
+                            if space.is_none() {
+                                down_steps += 1;
+                            } else {
+                                break;
+                            }
+                        }
                         let across_steps = if ndx < room_loc {
                             room_loc - ndx
                         } else {
@@ -79,7 +80,7 @@ impl Burrow {
                         };
                         let energy = (across_steps + down_steps) as u32 * amph.energy_per_step();
                         let mut new_burrow = self.clone();
-                        let new_dest: &mut [Option<Amphipod>; 2] = match amph {
+                        let new_dest: &mut [Option<Amphipod>; 4] = match amph {
                             Amphipod::Amber => &mut new_burrow.room_a,
                             Amphipod::Bronze => &mut new_burrow.room_b,
                             Amphipod::Copper => &mut new_burrow.room_c,
@@ -98,23 +99,20 @@ impl Burrow {
         for room_data in amphs.into_iter().zip(rooms).zip(Burrow::room_locations()) {
             let ((home_amph, room,), loc) = room_data;
             // which (if any) amphipod can move from this room?
-            let mover_ndx: Option<usize>;
-            if room[0].is_some() {
-                // this can move if it's not in its home, or if the partner is not its home
-                if room[0].unwrap() != home_amph || room[1].unwrap() != home_amph {
-                    mover_ndx = Option::Some(0);
-                } else {
-                    mover_ndx = Option::None;
+            let mut mover_ndx: Option<usize> = Option::None;
+            for potential_mover_ndx in 0..room.len() {
+                if room[potential_mover_ndx].is_some() {
+                    if room[potential_mover_ndx].unwrap() != home_amph {
+                        mover_ndx = Option::Some(potential_mover_ndx);
+                        break;
+                    } else if (potential_mover_ndx+1..room.len()).into_iter()
+                        .map(|n| room[n].unwrap())
+                        .any(|amph_below| amph_below != home_amph) {
+
+                        mover_ndx = Option::Some(potential_mover_ndx);
+                        break;
+                    }
                 }
-            } else if room[1].is_some() {
-                // this can move if it's not in its home
-                if room[1].unwrap() != home_amph {
-                    mover_ndx = Option::Some(1);
-                } else {
-                    mover_ndx = Option::None;
-                }
-            } else {
-                mover_ndx = Option::None;
             }
             // where can this amphipod go?
             let mut dests: Vec<usize> = Vec::new();
@@ -141,7 +139,7 @@ impl Burrow {
                 states.extend(dests.into_iter()
                     .map(|dest| {
                         let mut new_burrow = self.clone();
-                        let new_source: &mut [Option<Amphipod>; 2] = match home_amph {
+                        let new_source: &mut [Option<Amphipod>; 4] = match home_amph {
                             Amphipod::Amber => &mut new_burrow.room_a,
                             Amphipod::Bronze => &mut new_burrow.room_b,
                             Amphipod::Copper => &mut new_burrow.room_c,
@@ -223,7 +221,10 @@ impl Burrow {
     }
 }
 
-fn load_burrow(file: &str) -> Burrow {
+fn load_burrow(file: &str, part: u8) -> Burrow {
+    if ![1,2].contains(&part) {
+        panic!("part was {}, must be 1 or 2", part);
+    }
     let file = File::open(file).expect("could not open file");
     let mut buf_reader = BufReader::new(file);
     let mut buffer: String = String::new();
@@ -231,11 +232,33 @@ fn load_burrow(file: &str) -> Burrow {
     buf_reader.read_line(&mut buffer).unwrap();
     buf_reader.read_line(&mut buffer).unwrap();
     // remaining rows: rooms
-    let mut room_a: [Option<Amphipod>; 2] = [Option::None; 2];
-    let mut room_b: [Option<Amphipod>; 2] = [Option::None; 2];
-    let mut room_c: [Option<Amphipod>; 2] = [Option::None; 2];
-    let mut room_d: [Option<Amphipod>; 2] = [Option::None; 2];
-    for ndx in 0..2 {
+    let mut room_a: [Option<Amphipod>; 4] = [Option::None; 4];
+    let mut room_b: [Option<Amphipod>; 4] = [Option::None; 4];
+    let mut room_c: [Option<Amphipod>; 4] = [Option::None; 4];
+    let mut room_d: [Option<Amphipod>; 4] = [Option::None; 4];
+    let from_file: [usize; 2];
+    if part == 1 {
+        room_a[2] = Option::Some(Amphipod::Amber);
+        room_a[3] = Option::Some(Amphipod::Amber);
+        room_b[2] = Option::Some(Amphipod::Bronze);
+        room_b[3] = Option::Some(Amphipod::Bronze);
+        room_c[2] = Option::Some(Amphipod::Copper);
+        room_c[3] = Option::Some(Amphipod::Copper);
+        room_d[2] = Option::Some(Amphipod::Desert);
+        room_d[3] = Option::Some(Amphipod::Desert);
+        from_file = [0,1];
+    } else {
+        room_a[1] = Option::Some(Amphipod::Desert);
+        room_a[2] = Option::Some(Amphipod::Desert);
+        room_b[1] = Option::Some(Amphipod::Copper);
+        room_b[2] = Option::Some(Amphipod::Bronze);
+        room_c[1] = Option::Some(Amphipod::Bronze);
+        room_c[2] = Option::Some(Amphipod::Amber);
+        room_d[1] = Option::Some(Amphipod::Amber);
+        room_d[2] = Option::Some(Amphipod::Copper);
+        from_file = [0,3];
+    }
+    for ndx in from_file {
         buffer.clear();
         buf_reader.read_line(&mut buffer).unwrap();
         let rooms = [&mut room_a, &mut room_b, &mut room_c, &mut room_d];
@@ -280,21 +303,22 @@ fn least_energy(source: &Burrow, dest: &Burrow) -> u32 {
 }
 
 /**
-Run part 1 of Day 23's exercise.
+Run Day 23's exercise.
 
 # Examples
 ```
-assert_eq!(12521, aoc2021::day23::run_part1("test_inputs/day23.txt"));
+assert_eq!(12521, aoc2021::day23::run(1, "test_inputs/day23.txt"));
+assert_eq!(44169, aoc2021::day23::run(2, "test_inputs/day23.txt"));
 ```
  */
-pub fn run_part1(file: &str) -> u32 {
-    let burrow = load_burrow(file);
+pub fn run(part: u8, file: &str) -> u32 {
+    let burrow = load_burrow(file, part);
     let dest = Burrow {
         hallway: [Option::None; 11],
-        room_a: [Option::Some(Amphipod::Amber); 2],
-        room_b: [Option::Some(Amphipod::Bronze); 2],
-        room_c: [Option::Some(Amphipod::Copper); 2],
-        room_d: [Option::Some(Amphipod::Desert); 2],
+        room_a: [Option::Some(Amphipod::Amber); 4],
+        room_b: [Option::Some(Amphipod::Bronze); 4],
+        room_c: [Option::Some(Amphipod::Copper); 4],
+        room_d: [Option::Some(Amphipod::Desert); 4],
     };
     least_energy(&burrow, &dest)
 }
