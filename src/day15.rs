@@ -115,7 +115,6 @@ pub fn shortest_path(
     nodes: &HashSet<&(i32, i32)>,
     graph: &HashMap<(&(i32, i32), &(i32, i32)), u32>,
 ) -> u32 {
-    //TODO re-implement using A*
     let mut unvisited = nodes.clone();
     let mut distances: HashMap<&(i32, i32), Option<u32>> =
         unvisited.iter().map(|coord| (*coord, None)).collect();

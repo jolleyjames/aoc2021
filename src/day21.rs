@@ -151,7 +151,6 @@ pub fn run_part2(file: &str) -> u64 {
     let mut winners_0: u64 = 0;
     let mut winners_1: u64 = 0;
     let (tx, rx) = mpsc::channel();
-    // TODO do this for all combos
     for a in 3..10 {
         for b in 3..10 {
             for c in 3..10 {
