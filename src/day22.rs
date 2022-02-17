@@ -2,8 +2,6 @@ use std::fs::File;
 use std::io::BufRead;
 use std::io::BufReader;
 use std::collections::HashSet;
-use std::sync::mpsc;
-use std::thread;
 use std::time::Instant;
 
 #[derive(Clone, Copy, Debug)]
@@ -15,10 +13,10 @@ struct Instruction {
 }
 
 impl Instruction {
-    fn volume(&self) -> i64 {
-        (1 + self.x_range.1 - self.x_range.0) as i64 *
-        (1 + self.y_range.1 - self.y_range.0) as i64 *
-        (1 + self.z_range.1 - self.z_range.0) as i64
+    fn volume(&self) -> i128 {
+        (1 + self.x_range.1 - self.x_range.0) as i128 *
+        (1 + self.y_range.1 - self.y_range.0) as i128 *
+        (1 + self.z_range.1 - self.z_range.0) as i128
     }
     fn new(on: bool, x_range: &(i32,i32), y_range: &(i32,i32), z_range: &(i32,i32)) -> Instruction {
         if x_range.0 > x_range.1 {
@@ -119,121 +117,116 @@ fn split_instructions(plus: &Instruction, minus: &Instruction) -> Vec<Instructio
     new    
 }
 
-pub fn run_part2(file: &str) -> i64 {
-    let instructions: Vec<Instruction> = load_instructions(file);
-    let mut overlaps: Vec<Vec<Instruction>> = Vec::new();
-    for instruction in instructions {
-        let mut overlapping_ndxs: Vec<usize> = Vec::new();
-        for ndx in 0..overlaps.len() {
-            for member in &overlaps[ndx] {
-                if has_overlap(&instruction, &member) {
-                    overlapping_ndxs.push(ndx);
+pub fn run_part2(file: &str) -> i128 {
+    let mut instructions: Vec<Instruction> = load_instructions(file);
+    let mut last_instant: Instant = Instant::now();
+    //DEBUG
+    println!("instructions from file");
+    for i in 0..instructions.len() {
+        println!("[{}] {:?}", i, &instructions[i]);
+    }
+    //END DEBUG
+
+    // replace off instructions with corresponding sets of on instructions
+    let mut ndx: usize = 0;
+    while ndx < instructions.len() {
+        if !instructions[ndx].on {
+            // does this off instruction overlap with previous instructions?
+            let mut on_ndx: usize = 0;
+            while on_ndx < ndx {
+                if has_overlap(&instructions[ndx], &instructions[on_ndx]) {
+                    //DEBUG
+                    println!("overlap found: [{}] {:?}, [{}] {:?}", ndx, &instructions[ndx], on_ndx, &instructions[on_ndx]);
+                    //END DEBUG
+                    let new_instr = split_instructions(&instructions[on_ndx], &instructions[ndx]);
+                    let new_instr_len = new_instr.len();
+                    instructions.splice(on_ndx..on_ndx+1, new_instr);
+                    on_ndx += new_instr_len;
+                    ndx += new_instr_len;
+                    ndx -= 1;
+                } else {
+                    on_ndx += 1;
+                }
+            }
+            // remove this off instruction
+            instructions.remove(ndx);
+        } else {
+            ndx += 1;
+        }
+    }
+    //DEBUG
+    println!("instructions after replacement");
+    for i in 0..instructions.len() {
+        println!("[{}] {:?}", i, &instructions[i]);
+    }
+    //END DEBUG
+    
+    let mut volume: i128 = 0;
+    // remove all overlaps and sum remaining volumes
+    let mut overlappers: HashSet<(usize,usize)> = HashSet::new();
+    for a in 0..instructions.len()-1 {
+        for b in a..instructions.len() {
+            if has_overlap(&instructions[a],&instructions[b]) {
+                overlappers.insert((a,b));
+            }
+        }
+    }
+    let mut combo: Vec<usize> = vec![0];
+    while combo.len() > 0 {
+        //DEBUG
+        if Instant::now().duration_since(last_instant).as_secs() >= 10 {
+            println!("combo: {:?}", combo);
+            last_instant = Instant::now();
+        }
+        //END DEBUG
+        let mut instr: Option<Instruction> = Option::Some(instructions[combo[0]]);
+        for n in 1..combo.len() {
+            if !overlappers.contains(&(combo[n-1],combo[n])) {
+                instr = Option::None;
+                break;
+            } else {
+                //DEBUG
+                //println!("instr == {:?}", instr);
+                //println!("instructions[{}] == {:?}", n, instructions[combo[n]]);                
+                //END DEBUG
+                let x_range = (instr.unwrap().x_range.0.max(instructions[combo[n]].x_range.0), instr.unwrap().x_range.1.min(instructions[combo[n]].x_range.1));
+                let y_range = (instr.unwrap().y_range.0.max(instructions[combo[n]].y_range.0), instr.unwrap().y_range.1.min(instructions[combo[n]].y_range.1));
+                let z_range = (instr.unwrap().z_range.0.max(instructions[combo[n]].z_range.0), instr.unwrap().z_range.1.min(instructions[combo[n]].z_range.1));
+                if x_range.0 <= x_range.1 && y_range.0 <= y_range.1 && z_range.0 <= z_range.1 {
+                    instr = Option::Some(Instruction::new(true, &x_range, &y_range, &z_range));
+                    //DEBUG
+                    //println!("instr.unwrap() == {:?}", instr.unwrap());
+                    //END DEBUG
+                } else {
+                    instr = Option::None;
                     break;
                 }
             }
         }
-        if overlapping_ndxs.len() == 0 {
-            overlaps.push(vec![instruction]);
-        } else {
-            while overlapping_ndxs.len() > 1 {
-                let remove = overlapping_ndxs.pop().unwrap();
-                let keep = overlapping_ndxs[0];
-                for moving_instruction in overlaps[remove].clone() {
-                    overlaps[keep].push(moving_instruction);
-                }
-                overlaps.remove(remove);
-            }
-            overlaps[overlapping_ndxs[0]].push(instruction);
-        }
-    }
-    // replace off instructions with corresponding sets of on instructions
-    for set_ndx in 0..overlaps.len() {
-        let mut ndx: usize = 0;
-        while ndx < overlaps[set_ndx].len() {
-            if !overlaps[set_ndx][ndx].on {
-                // does this off instruction overlap with previous instructions?
-                let mut on_ndx: usize = 0;
-                while on_ndx < ndx {
-                    if has_overlap(&overlaps[set_ndx][ndx], &overlaps[set_ndx][on_ndx]) {
-                        let new_instr = split_instructions(&overlaps[set_ndx][on_ndx], &overlaps[set_ndx][ndx]);
-                        let new_instr_len = new_instr.len();
-                        overlaps[set_ndx].splice(on_ndx..on_ndx+1, new_instr);
-                        on_ndx += new_instr_len;
-                        ndx += new_instr_len;
-                        ndx -= 1;
-                    } else {
-                        on_ndx += 1;
-                    }
-                }
-                // remove this off instruction
-                overlaps[set_ndx].remove(ndx);
+        if instr.is_some() {
+
+            let multiplier: i128 = if combo.len()%2 == 1 {
+                1
             } else {
-                ndx += 1;
+                -1
+            };
+            //DEBUG
+            //println!("{:?} {}", combo, instr.unwrap().volume() * multiplier);
+            //END DEBUG
+            let to_volume = instr.unwrap().volume() * multiplier;
+            volume += to_volume;
+            combo.push(combo[combo.len()-1]+1);
+        } else {
+            let combo_len_min1 = combo.len()-1;
+            combo[combo_len_min1] += 1;
+        }
+        while combo.len() > 0 && combo[combo.len()-1] >= instructions.len() {
+            combo.pop();
+            if combo.len() > 0 {
+                let combo_len_min1 = combo.len()-1;
+                combo[combo_len_min1] += 1;
             }
         }
     }
-    let mut volume: i64 = 0;
-    let (tx, rx) = mpsc::channel();
-    let overlaps_len = overlaps.len();
-    // remove all overlaps and sum remaining volumes
-    while overlaps.len() > 0 {
-        let mut overlap = overlaps.pop().unwrap();
-        let overlaps_len_clone = overlaps_len;
-        let this_overlap_number = overlaps_len - overlaps.len();
-        let txcl = tx.clone();
-        thread::spawn(move || {
-            let mut last_instant: Instant = Instant::now();
-            while overlap.len() > 0 {
-                let mut updated: bool = false;
-                for b_ndx in 1 .. overlap.len() {
-                    //DEBUG
-                    if Instant::now().duration_since(last_instant).as_secs() >= 5 {
-                         println!("overlaps[{}/{}] compare 0 and {} / {}", this_overlap_number, overlaps_len_clone, b_ndx, overlap.len());
-                         last_instant = Instant::now();
-                    }
-                    //END DEBUG
-                    if has_overlap(&overlap[0], &overlap[b_ndx]) {
-                        updated = true;
-                        let x_range = (
-                            overlap[0].x_range.0.max(overlap[b_ndx].x_range.0),
-                            overlap[0].x_range.1.min(overlap[b_ndx].x_range.1),
-                        );
-                        let y_range = (
-                            overlap[0].y_range.0.max(overlap[b_ndx].y_range.0),
-                            overlap[0].y_range.1.min(overlap[b_ndx].y_range.1),
-                        );
-                        let z_range = (
-                            overlap[0].z_range.0.max(overlap[b_ndx].z_range.0),
-                            overlap[0].z_range.1.min(overlap[b_ndx].z_range.1),
-                        );
-                        let mut new = vec![Instruction::new(true, &x_range, &y_range, &z_range)];
-                        new.extend(split_instructions(&overlap[0], &overlap[b_ndx]).iter());
-                        new.extend(split_instructions(&overlap[b_ndx], &overlap[0]).iter());
-                        overlap.remove(b_ndx);
-                        overlap.remove(0);
-                        overlap.extend(new.iter());
-                        break;
-                    }
-                }
-                if !updated {
-                    txcl.send(overlap[0].volume()).unwrap();
-                    overlap.remove(0);
-                }
-            }
-        });
-    };
-    drop(tx);
-
-    let mut last_instant: Instant = Instant::now();
-    for vol in rx {
-        volume += vol;
-        //DEBUG
-        if Instant::now().duration_since(last_instant).as_secs() >= 5 {
-            println!("volume {}", volume);
-            last_instant = Instant::now();
-        }
-        //END DEBUG
-    }
-
     volume
 }
